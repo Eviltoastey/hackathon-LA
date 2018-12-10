@@ -6,6 +6,7 @@ requires = [
     'pyramid_debugtoolbar==4.5.*',
     'waitress==1.1.*',
     'SQLAlchemy==1.2.*',
+    'psycopg2==2.7.6.*',
     'zope.sqlalchemy==1.0.*',
     'dependency_injector==3.14.*'
 ]
@@ -41,5 +42,8 @@ setup(
         'paste.app_factory': [
             'main = hackathon_la:main',
         ],
+        'console_scripts': [
+            'init_db = hackathon_la.scripts.init_db:main'
+        ]
     },
 )

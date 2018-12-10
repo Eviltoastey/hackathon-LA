@@ -22,6 +22,8 @@ class Car(Base, IDMixin, DateMixin):
 
 
 class Booking(Base, IDMixin, DateMixin):
+    __tablename__ = 'booking'
+
     start_date = Column(DateTime, nullable=False)
     end_date = Column(DateTime, nullable=False)
 
