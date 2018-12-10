@@ -6,7 +6,7 @@ Getting Started
 
 - Change directory into your newly created project.
 
-    cd bundelz_iq
+    cd hackathon_la
 
 - Create a Python virtual environment.
 

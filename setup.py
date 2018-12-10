@@ -39,7 +39,7 @@ setup(
     install_requires=requires,
     entry_points={
         'paste.app_factory': [
-            'main = bundelz_iq:main',
+            'main = hackathon_la:main',
         ],
     },
 )
