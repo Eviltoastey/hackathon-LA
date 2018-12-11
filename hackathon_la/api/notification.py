@@ -15,7 +15,7 @@ class CarDetailsAPI:
     def __init__(self, request: Request):
         self._request = request
         self._gmaps = googlemaps.Client(
-            key="AIzaSyD9udYnuNGeOIMfKXd23cQK7xDMncsUCVs")
+            key="API_KEY")
         self._car_repository = CarRepository(Database.session())
 
     @view_config(route_name='current_user.notification', request_method='GET')
