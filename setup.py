@@ -4,6 +4,7 @@ requires = [
     'plaster_pastedeploy==0.6.*',
     'pyramid==1.9.*',
     'pyramid_debugtoolbar==4.5.*',
+    'pyramid_tm==2.2.*',
     'waitress==1.1.*',
     'SQLAlchemy==1.2.*',
     'psycopg2==2.7.6.*',
