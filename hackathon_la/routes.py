@@ -7,15 +7,9 @@ def includeme(config: Configurator):
     ###
 
     config.add_route(
-        name="current_user.notification",
-        path="/notification",
-        request_method="GET"
-    )
-
-    config.add_route(
-        name="current_user.dashboard",
-        path="/dashboard",
-        request_method="GET"
+        name="current_user.settings",
+        path="/settings",
+        request_method="POST"
     )
 
     config.add_route(

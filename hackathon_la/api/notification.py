@@ -2,6 +2,7 @@ import datetime
 from math import radians, sin, atan2, sqrt, cos
 from time import sleep
 
+import dateutil.parser
 import googlemaps
 from pyramid.httpexceptions import HTTPNoContent
 from pyramid.request import Request
@@ -23,37 +24,45 @@ class CarDetailsAPI:
         )
         self._car_repository = CarRepository(Database.session())
 
-    @view_config(route_name='current_user.notification', request_method='GET')
+    @view_config(route_name='current_user.settings', request_method='POST')
     def get_notification_data_handler(self):
-        user_latitude = float(self._request.params.get("lat"))
-        user_longitude = float(self._request.params.get("lon"))
-        user_location = (user_latitude, user_longitude)
+        data = self._request.json_body
 
-        address, distance, duration, end_date = self._calculate_matrix(
-            user_location)
+        self._google_client.get_nearest_gas_station((37.31917, -122.04511))
+
+        user_pos = (float(data["user"]["x"]), float(data["user"]["y"]))
+        car_pos = (float(data["car"]["x"]), float(data["car"]["y"]))
+        fuel = int(data["car"]["fuel"])
+        parking_pos = (float(data["parking"]["x"]), float(data["parking"]["y"]))
+        end_date = dateutil.parser.parse(data["booking"]["expires"], ignoretz=True)
+
+        address, distance, duration = self._calculate_matrix(user_pos, car_pos, parking_pos)
+
+        # check if user needs to refuel
+        gs_pos = None
+        if fuel < 25:
+            gas_station_pos_dict = self._google_client.get_nearest_gas_station(car_pos)
+            gs_pos = (gas_station_pos_dict["lat"], gas_station_pos_dict["lng"])
+            gs_address, gs_distance, gs_duration = self._calculate_matrix(car_pos, car_pos, gs_pos)
+            distance = distance + gs_distance
+            duration = duration + gs_duration
+
         if datetime.datetime.utcnow() + datetime.timedelta(seconds=duration + self.THRESHOLD) >= end_date:
-            return {
-                "notification_type": "MUST_GO",
-                "time_required": duration,
-                "distance": distance,
-                "address": address
+            res = {
+                "data": {
+                    "time_required": duration,
+                    "distance": distance,
+                    "address": address
+                },
+                "request": data
             }
-
-        return HTTPNoContent()
-
-    @view_config(route_name='current_user.dashboard', request_method='GET')
-    def get_dashboard_data_handler(self):
-        car = self._car_repository.get_car()
-
-        return {
-            "fuel_level": car.fuel_level,
-            "car_latitude": car.lat,
-            "car_longitude": car.lon,
-            "parking_spot_latitude": car.parking_spot_lat,
-            "parking_spot_longitude": car.parking_spot_lon,
-            "booking_start_date": car.booking[0].start_date,
-            "booking_end_date": car.booking[0].end_date
-        }
+            if gs_pos:
+                res["gas_station"] = {
+                    "lat": f"{gs_pos[0]}",
+                    "lon": f"{gs_pos[1]}"
+                }
+            return res
+        return {"request": data}
 
     @view_config(route_name='current_user.extend', request_method='POST')
     def extend_date_handler(self):
@@ -68,24 +77,21 @@ class CarDetailsAPI:
         sleep(1)
         return HTTPNoContent()
 
-    def _calculate_matrix(self, user_location):
+    def _calculate_matrix(self, user_pos, car_pos, parking_pos):
         """
         calculates the user's distance, duration and gets the address and the
         booking's end date
-        :param user_location: the user's location tuple coordinates
+        :param user_pos: the user's location tuple coordinates
         :return:
         """
-        car = self._car_repository.get_car()
-        car_location = (car.lat, car.lon)
-        park_location = (car.parking_spot_lat, car.parking_spot_lon)
-        user_car_distance = _calculate_distance(user_location, car_location)
+        user_car_distance = _calculate_distance(user_pos, car_pos)
         user_car_matrix = None
         if user_car_distance > 50:
             user_car_matrix = self._google_client \
-                .get_matrix_response(user_location, car_location,
+                .get_matrix_response(user_pos, car_pos,
                                      mode="walking")
         car_park_matrix = self._google_client \
-            .get_matrix_response(user_location, park_location)
+            .get_matrix_response(user_pos, parking_pos)
 
         address = car_park_matrix.address
         if user_car_matrix:
@@ -94,7 +100,7 @@ class CarDetailsAPI:
         else:
             duration = car_park_matrix.duration
             distance = car_park_matrix.distance
-        return address, distance, duration, car.booking[0].end_date
+        return address, distance, duration
 
 
 def _calculate_distance(origin: tuple, destination: tuple) -> int:
