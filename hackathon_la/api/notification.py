@@ -1,7 +1,8 @@
-import logging
+import datetime
 from math import radians, sin, atan2, sqrt, cos
 
 import googlemaps
+from pyramid.httpexceptions import HTTPNoContent
 from pyramid.request import Request
 from pyramid.view import view_defaults, view_config
 
@@ -12,7 +13,7 @@ from hackathon_la.repository import CarRepository
 
 @view_defaults(renderer="json")
 class CarDetailsAPI:
-    _LOG = logging.getLogger(__name__)
+    THRESHOLD = 900  # 15 minutes
 
     def __init__(self, request: Request):
         self._request = request
@@ -27,17 +28,33 @@ class CarDetailsAPI:
         user_longitude = float(self._request.params.get("lon"))
         user_location = (user_latitude, user_longitude)
 
+        address, distance, duration, end_date = self._calculate_matrix(user_location)
+        if datetime.datetime.utcnow() + datetime.timedelta(seconds=duration + self.THRESHOLD) >= end_date:
+            return {
+                "notification_type": "MUST_GO",
+                "time_required": duration,
+                "distance": distance,
+                "address": address
+            }
+
+        return HTTPNoContent()
+
+    def _calculate_matrix(self, user_location):
+        """
+        calculates the user's distance, duration and gets the address and the
+        booking's end date
+        :param user_location: the user's location tuple coordinates
+        :return:
+        """
         car = self._car_repository.get_car()
         car_location = (car.lat, car.lon)
         park_location = (car.parking_spot_lat, car.parking_spot_lon)
-
-        user_car_distance = calculate_distance(user_location, car_location)
-
+        user_car_distance = _calculate_distance(user_location, car_location)
         user_car_matrix = None
         if user_car_distance > 50:
             user_car_matrix = self._google_client \
-                .get_matrix_response(user_location, car_location, mode="walking")
-
+                .get_matrix_response(user_location, car_location,
+                                     mode="walking")
         car_park_matrix = self._google_client \
             .get_matrix_response(user_location, park_location)
 
@@ -48,16 +65,10 @@ class CarDetailsAPI:
         else:
             duration = car_park_matrix.duration
             distance = car_park_matrix.distance
-
-        return {
-            "notification_type": "MUST_GO",
-            "time_required": duration,
-            "distance": distance,
-            "address": address
-        }
+        return address, distance, duration, car.booking[0].end_date
 
 
-def calculate_distance(origin: tuple, destination: tuple) -> int:
+def _calculate_distance(origin: tuple, destination: tuple) -> int:
     R = 6373.0
 
     lat1 = radians(origin[0])
