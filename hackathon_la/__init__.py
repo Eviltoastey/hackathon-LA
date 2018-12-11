@@ -6,6 +6,7 @@ def main(global_config, **settings):
     """
     config = Configurator(settings=settings)
     config.include("hackathon_la.core.container.core")
+    config.include("hackathon_la.core.renderer")
     config.include("hackathon_la.model")
     config.include("hackathon_la.routes")
     config.scan()

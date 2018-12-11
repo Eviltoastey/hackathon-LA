@@ -1,5 +1,6 @@
 import datetime
 from math import radians, sin, atan2, sqrt, cos
+from time import sleep
 
 import googlemaps
 from pyramid.httpexceptions import HTTPNoContent
@@ -28,8 +29,10 @@ class CarDetailsAPI:
         user_longitude = float(self._request.params.get("lon"))
         user_location = (user_latitude, user_longitude)
 
-        address, distance, duration, end_date = self._calculate_matrix(user_location)
-        if datetime.datetime.utcnow() + datetime.timedelta(seconds=duration + self.THRESHOLD) >= end_date:
+        address, distance, duration, end_date = self._calculate_matrix(
+            user_location)
+        if datetime.datetime.utcnow() + datetime.timedelta(
+                seconds=duration + self.THRESHOLD) >= end_date:
             return {
                 "notification_type": "MUST_GO",
                 "time_required": duration,
@@ -37,6 +40,33 @@ class CarDetailsAPI:
                 "address": address
             }
 
+        return HTTPNoContent()
+
+    @view_config(route_name='current_user.dashboard', request_method='GET')
+    def get_notification_data_handler(self):
+        car = self._car_repository.get_car()
+
+        return {
+            "fuel_level": car.fuel_level,
+            "car_latitude": car.lat,
+            "car_longitude": car.lon,
+            "parking_spot_latitude": car.parking_spot_lat,
+            "parking_spot_longitude": car.parking_spot_lon,
+            "booking_start_date": car.booking[0].start_date,
+            "booking_end_date": car.booking[0].end_date
+        }
+
+    @view_config(route_name='current_user.extend', request_method='POST')
+    def get_notification_data_handler(self):
+        data = self._request.json_body
+        car = self._car_repository.get_car()
+
+        booking = car.booking[0]
+        booking.end_date = booking.end_date + datetime.timedelta(
+            seconds=int(data["seconds"]))
+        self._car_repository.save(booking)
+
+        sleep(1)
         return HTTPNoContent()
 
     def _calculate_matrix(self, user_location):
