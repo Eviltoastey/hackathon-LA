@@ -31,8 +31,7 @@ class CarDetailsAPI:
 
         address, distance, duration, end_date = self._calculate_matrix(
             user_location)
-        if datetime.datetime.utcnow() + datetime.timedelta(
-                seconds=duration + self.THRESHOLD) >= end_date:
+        if datetime.datetime.utcnow() + datetime.timedelta(seconds=duration + self.THRESHOLD) >= end_date:
             return {
                 "notification_type": "MUST_GO",
                 "time_required": duration,
@@ -43,7 +42,7 @@ class CarDetailsAPI:
         return HTTPNoContent()
 
     @view_config(route_name='current_user.dashboard', request_method='GET')
-    def get_notification_data_handler(self):
+    def get_dashboard_data_handler(self):
         car = self._car_repository.get_car()
 
         return {
@@ -57,7 +56,7 @@ class CarDetailsAPI:
         }
 
     @view_config(route_name='current_user.extend', request_method='POST')
-    def get_notification_data_handler(self):
+    def extend_date_handler(self):
         data = self._request.json_body
         car = self._car_repository.get_car()
 
